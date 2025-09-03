@@ -104,14 +104,17 @@ The first three scripts are available as ES6 modules with the file extension `.m
 The custom element `graphviz-graph` generates an SVG and displays it in its shadow root.
 
 ```html
-<graphviz-graph graph="..." scale="..."></graphviz-graph>
+<graphviz-graph scale="...">
+  // Graph here: for example,
+  digraph { a -> b }
+</graphviz-graph>
 ```
 
 #### Attributes
 
-The attribute `graph` supplies the graph script in the [Graphviz] format. Whenever the `graph` attribute changes, the element content will be re-generated and re-rendered. If this attribute is empty, the element content will be empty. If generating of the image fails, the element will display an error message.
+The text inside the `<graphviz-graph>` tag supplies the graph script in the [Graphviz] format. Whenever this text changes, the element content will be re-generated and re-rendered. If this text is empty, the element content will be empty. If generating of the image fails, the element will display an error message.
 
-The attribute `scale` sets the "zoom" level for the SVG content. It has to be convertible to a real number greater than `0`. Values in the interval `(0;1>)` decrease the image size, values greater than `1` increase it. The default value is `1`, which means the original size. The value can be convertent to percents of the original size by multiplying by `100`.
+The attribute `scale` sets the "zoom" level for the SVG content. It has to be convertible to a real number greater than `0`. Values in the interval `(0;1>)` decrease the image size, values greater than `1` increase it. The default value is `1`, which means the original size. The value can be converted to percents of the original size by multiplying by `100`.
 
 #### Properties
 

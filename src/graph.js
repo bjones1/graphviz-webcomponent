@@ -1,6 +1,5 @@
 import getRenderer from './separate-engine'
 
-const graphKey = Symbol('graph')
 const scaleKey = Symbol('scale')
 // Use this to assign a unique ID to each render. Messages with the rendered
 // SVG will be received by multiple graphs, if multiple graphs dispatched
@@ -52,9 +51,9 @@ function showError (element, error) {
 function updateGraph (element) {
   return new Promise(resolve => {
     element.shadowRoot.innerHTML = ''
-    if (!element.graph) return resolve()
-    requestRendering(element, undefined, receiveResult)
-    const assignedRenderId = requestRendering(element, undefined, receiveResult)
+    const script = element.__textContent;
+    if (!script) return resolve()
+    const assignedRenderId = requestRendering(element, script, receiveResult)
 
     function receiveResult ({ data }) {
       const { svg, error, renderId } = data
@@ -75,7 +74,7 @@ function updateGraph (element) {
 function tryUpdateGraph (element, script) {
   return new Promise((resolve, reject) => {
     if (!script) {
-      element[graphKey] = ''
+      element.innerHTML = ''
       element.shadowRoot.innerHTML = ''
       return resolve()
     }
@@ -87,7 +86,7 @@ function tryUpdateGraph (element, script) {
       if (assignedRenderId !== renderId) return
       closeRendering(receiveResult)
       if (error) return reject(error)
-      element[graphKey] = script
+      element.innerHTML = script
       showImage(element, svg)
       resolve(svg)
     }
@@ -99,20 +98,15 @@ class GraphvizGraphElement extends HTMLElement {
     super()
     this.attachShadow({ mode: 'open' })
     this.graphCompleted = Promise.resolve()
+    // From Mermaid web component -- see below.
+    this.__renderGraph = this.__renderGraph.bind(this);
   }
-
-  get graph () { return this[graphKey] }
-  set graph (value) { this.setAttribute('graph', value) }
 
   get scale () { return this[scaleKey] }
   set scale (value) { this.setAttribute('scale', value) }
 
   attributeChangedCallback (name, oldValue, newValue) {
     switch (name) {
-      case 'graph':
-        this[graphKey] = newValue
-        this.graphCompleted = updateGraph(this).catch(error => error)
-        break
       case 'scale':
         this[scaleKey] = newValue
         applyScale(this)
@@ -125,7 +119,69 @@ class GraphvizGraphElement extends HTMLElement {
     return promise
   }
 
-  static get observedAttributes () { return ['graph', 'scale'] }
+  static get observedAttributes () { return ['scale'] }
+
+  __renderGraph() {
+    this.graphCompleted = updateGraph(this).catch(error => error)
+  }
+
+  // Copied from https://github.com/manolakis/wc-mermaid/blob/master/src/WcMermaid.js:
+  /**
+   * @returns {ChildNode[]}
+   * @private
+   */
+  get __textNodes() {
+    return Array.from(this.childNodes).filter(
+      node => node.nodeType === this.TEXT_NODE
+    );
+  }
+
+  /**
+   * @returns {string}
+   * @private
+   */
+  get __textContent() {
+    return this.__textNodes.map(node => node.textContent?.trim()).join('');
+  }
+
+    __observeTextNodes() {
+    if (this.__textNodeObservers) {
+      this.__cleanTextNodeObservers();
+    }
+
+    this.__textNodeObservers = this.__textNodes.map(textNode => {
+      const observer = new MutationObserver(this.__renderGraph);
+
+      observer.observe(textNode, { characterData: true });
+
+      return observer;
+    });
+  }
+
+  __cleanTextNodeObservers() {
+    if (this.__textNodeObservers) {
+      this.__textNodeObservers.forEach(observer => observer.disconnect());
+    }
+  }
+
+  connectedCallback() {
+    this.__observer = new MutationObserver(() => {
+      this.__observeTextNodes();
+      this.__renderGraph();
+    });
+    this.__observer.observe(this, { childList: true });
+    this.__observeTextNodes();
+    this.__renderGraph();
+  }
+
+  disconnectedCallback() {
+    this.__cleanTextNodeObservers();
+
+    if (this.__observer) {
+      this.__observer.disconnect();
+      this.__observer = null;
+    }
+  }
 }
 
 customElements.define('graphviz-graph', GraphvizGraphElement)

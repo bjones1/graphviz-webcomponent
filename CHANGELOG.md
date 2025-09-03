@@ -1,3 +1,9 @@
+# Github master
+
+### Features
+
+* Place the script which defines the graph as text elements inside this component, instead of in the `script` attribute.
+
 # [2.0.0](https://github.com/prantlf/graphviz-webcomponent/compare/v1.2.3...v2.0.0) (2023-04-02)
 
 
